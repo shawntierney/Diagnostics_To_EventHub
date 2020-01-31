@@ -1,0 +1,123 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "storageAccountName": {
+          "type": "string",
+          "metadata": {
+              "description": "The name of the storage account that will hold Azure diagnostic data for the virtual machines"
+          }
+      },
+      "vmName": {
+        "type": "string",
+        "metadata": {
+          "description": "Name of VMs being updated with diagnostics extension"
+        }
+      },
+      "vmLocation": {
+        "type": "string",
+        "metadata": {
+          "description": "Location of VM"
+        }
+      },
+      "eventHubNamespace" : {
+        "type": "string",
+        "metadata": {
+          "description": "Name of Event Hub namespace where logs will be forwarded"
+        }
+      },
+      "eventHubName" : {
+        "type": "string",
+        "metadata": {
+          "description": "Name of the Event Hub where logs will be forwarded"
+        }
+      },
+      "eventHubResourceGroupName" : {
+        "type": "string",
+        "metadata": {
+          "description": "Name of the resource group containing the Event Hub"
+        }
+      },
+      "sharedAccessKeyName" : {
+        "type": "string",
+        "metadata": {
+          "description": "Event Hub shared access key name"
+        }
+      },
+      "storageAccountResourceGroup" : {
+        "type": "string",
+        "metadata": {
+          "description": "Storage account resource group name"
+        }
+      },
+      "storageAccountSubId" : {
+        "type": "string",
+        "metadata": {
+          "description": "Storage account subscription Id"
+        }
+      },
+      "eventHubSubId" : {
+        "type": "string",
+        "metadata": {
+          "description": "Storage account subscription Id"
+        }
+      }
+    },
+"variables": 
+{  
+  "authRuleResourceId": "[resourceId(parameters('eventHubSubId'), parameters('eventHubResourceGroupName'), 'Microsoft.EventHub/namespaces/eventhubs/authorizationRules', parameters('eventHubNamespace'), parameters('eventHubName'), parameters('sharedAccessKeyName'))]",
+  "eventHubUrl": "[concat('https://', parameters('eventHubNamespace'), '.servicebus.windows.net/', parameters('eventHubName'))]",
+  "accountid": "[concat('/subscriptions/', parameters('storageAccountSubId'),'/resourceGroups/', parameters('storageAccountResourceGroup'),'/providers/','Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+  "wadlogs": "<WadCfg> <DiagnosticMonitorConfiguration overallQuotaInMB=\"4096\" xmlns=\"http://schemas.microsoft.com/ServiceHosting/2010/10/DiagnosticsConfiguration\" sinks=\"EventHub\"> <DiagnosticInfrastructureLogs scheduledTransferLogLevelFilter=\"Error\"/> <WindowsEventLog scheduledTransferPeriod=\"PT1M\"> <DataSource name=\"Security!*[System[(band(Keywords,13510798882111488))]]\" /> </WindowsEventLog>", 
+  "waddirectories": "<Directories scheduledTransferPeriod=\"PT5M\"><IISLogs containerName=\"iislogs\" /> </Directories>",
+  "wadcfgxstart": "[concat(variables('wadlogs'),variables('waddirectories'), '<Metrics resourceId=\"')]", 
+  "wadmetricsresourceid": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('vmLocation'), '/providers/', 'Microsoft.Compute/virtualMachines/')]", 
+  "wadcfgxend": "[concat('\"><MetricAggregation scheduledTransferPeriod=\"PT1H\"/><MetricAggregation scheduledTransferPeriod=\"PT1M\"/></Metrics></DiagnosticMonitorConfiguration> <SinksConfig> <Sink name=\"EventHub\"><EventHub Url=\"', variables('eventHubUrl'), '\" SharedAccessKeyName=\"', parameters('sharedAccessKeyName'), '\" usePublisherId=\"false\" /></Sink></SinksConfig></WadCfg>')]"
+},
+"resources": [ 
+      { 
+        "name": "[concat(parameters('vmName'),'/Microsoft.Insights.VMDiagnosticsSettings')]", 
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "location": "[parameters('vmLocation')]", 
+        "apiVersion": "2016-03-30", 
+        "dependsOn": [ ], 
+        "properties": { 
+          "publisher": "Microsoft.Azure.Diagnostics", 
+          "type": "IaaSDiagnostics", 
+          "typeHandlerVersion": "1.5", 
+          "autoUpgradeMinorVersion": true, 
+          "settings": { 
+            "xmlCfg": "[base64(concat(variables('wadcfgxstart'), variables('wadmetricsresourceid'), parameters('vmName'),variables('wadcfgxend')))]", "storageAccount": "[parameters('storageAccountName')]"
+          }, 
+          "protectedSettings": { 
+            "storageAccountName": "[parameters('storageAccountName')]", 
+            "storageAccountKey": "[listkeys(variables('accountid'), '2015-06-15').key1]", 
+            "storageAccountEndPoint": "https://core.windows.net",
+            "EventHub": {
+                "Url": "[variables('eventHubUrl')]",
+                "SharedAccessKeyName": "[parameters('sharedAccessKeyName')]",
+                "SharedAccessKey": "[listkeys(variables('authRuleResourceId'), '2017-04-01').primaryKey]" 
+            }
+          } 
+        } 
+      }
+    ],
+    "outputs": {
+        "urlTest": {
+          "value": "[variables('eventHubUrl')]",
+          "type": "string"
+        },
+    "sharedKey": {
+        "value": "[parameters('sharedAccessKeyName')]",
+        "type": "string"
+        },
+    "sharedKeyNumber": {
+        "value": "[listkeys(variables('authRuleResourceId'), '2017-04-01').primaryKey]",
+        "type": "string"
+        },
+    "xmlOutput": {
+      "value": "[variables('wadcfgxend')]",
+      "type": "string"
+      }
+    }
+}
