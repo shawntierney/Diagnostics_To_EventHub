@@ -1,0 +1,53 @@
+{
+    "PublicConfig": {
+    "WadCfg": {
+        "DiagnosticMonitorConfiguration": {
+            "overallQuotaInMB": 5120,
+            "WindowsEventLog": {
+                "scheduledTransferPeriod": "PT1M",
+                "sinks": "myEventHub",
+                    "DataSource": [
+                    {
+                        "name": "Security!*[System[(band(Keywords,13510798882111488))]]"
+                    },
+                    {
+                        "name": "Application!*[System[(Level=1 or Level=2 or Level=3)]]"
+                    },
+                    {
+                        "name": "System!*[System[(Level=1 or Level=2 or Level=3)]]"
+                    }
+                ]
+            }
+        },
+        "Directories": {
+            "scheduledTransferPeriod": "PT5M",
+            "IISLogs": {
+                "containerName": "iislogs"
+            }
+        },
+        "SinksConfig": {
+            "Sink": [
+                {
+                    "name": "myEventHub",
+                    "EventHub": {
+                        "Url": "https://diags-mycompany-ns.servicebus.windows.net/diageventhub",
+                        "SharedAccessKeyName": "SendRule"
+                        }
+                    }
+                ]
+            }
+        },
+    "StorageAccount": "mystorageaccount",
+    "StorageType": "TableandBlob"
+},
+    "PrivateConfig": {
+        "storageAccountName": "mystorageaccount",
+        "storageAccountKey": "{base64 encoded key}",
+        "storageAccountEndPoint": "https://core.windows.net",
+        "EventHub": {
+            "Url": "https://diags-mycompany-ns.servicebus.windows.net/diageventhub",
+            "SharedAccessKeyName": "SendRule",
+            "SharedAccessKey": "{base64 encoded key}"
+        }
+    }
+}
